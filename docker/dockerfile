@@ -1,0 +1,96 @@
+FROM ubuntu:16.10
+MAINTAINER KT
+
+RUN apt-get update && apt-get install -y openssh-server
+RUN mkdir /var/run/sshd
+RUN echo 'root:screencast' | chpasswd
+RUN sed -i 's/PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config
+
+# SSH login fix. Otherwise user is kicked off after login
+RUN sed 's@session\s*required\s*pam_loginuid.so@session optional pam_loginuid.so@g' -i /etc/pam.d/sshd
+
+# For server install X11 forward
+RUN apt-get -y install xserver-xorg
+
+# For testing X11 forward
+RUN apt-get install -y x11-apps
+
+# Install Atom editor
+RUN apt-get install -y software-properties-common
+RUN add-apt-repository -y ppa:webupd8team/atom
+RUN apt-get update
+RUN apt-get install -y atom
+RUN apt-get install -y libxss1 libasound2
+
+# Install atom package and bugfix
+RUN apm install script
+RUN apm install japanese-menu
+RUN apm install atom-clock
+RUN apm install atom-ide-ui
+RUN apm install sync-settings
+RUN apm install project-manager
+RUN apm install file-icons
+
+RUN sed -i 's/BIG-REQUESTS/_IG-REQUESTS/' /usr/lib/x86_64-linux-gnu/libxcb.so.1
+
+# Setup Japanese environment.
+RUN cp /usr/share/zoneinfo/Asia/Tokyo /etc/localtime && echo 'Asia/Tokyo' > /etc/timezone && date
+RUN echo 'LC_ALL=ja_JP.UTF-8' > /etc/default/locale && echo 'LANG=ja_JP.UTF-8' >> /etc/default/locale &&  locale-gen ja_JP.UTF-8
+RUN apt-get install -y ibus-anthy
+ENV LC_CTYPE ja_JP.UTF-8
+
+# Install development ENV for Python
+RUN apt-get install -y git gcc make openssl libssl-dev libbz2-dev libreadline-dev libsqlite3-dev
+
+# http://qiita.com/sobeit@github/items/eb24bbcc02822223d8eb
+RUN apt-get install -y python3-tk tk-dev python-tk libfreetype6-dev
+
+RUN python -V
+
+# pyenv Installing
+RUN git clone https://github.com/yyuu/pyenv.git ~/.pyenv
+
+# python Setting
+RUN echo 'PYENV_ROOT=/root/.pyenv' >> ~/.bash_profile
+RUN echo 'PATH=$PYENV_ROOT/bin:$PATH' >> ~/.bash_profile
+
+ENV PYENV_ROOT /root/.pyenv
+ENV PATH $PYENV_ROOT/bin:$PATH
+RUN env
+
+RUN echo 'eval "$(pyenv init -)"' >> ~/.bash_profile && . ~/.bash_profile
+RUN pyenv --version
+
+RUN pyenv install 3.5.1 && pyenv global 3.5.1
+RUN python -V
+
+# Virtual Python DevENV Installing
+RUN git clone https://github.com/yyuu/pyenv-virtualenv.git ~/.pyenv/plugins/pyenv-virtualenv
+
+RUN echo 'eval "$(pyenv virtualenv-init -)"' >> ~/.bash_profile && . ~/.bash_profile
+
+# Virtual Python DevENV Setting
+RUN pyenv virtualenv 3.5.1 dev1_3.5.1
+RUN pyenv local dev1_3.5.1
+RUN python -V
+
+# pip Installing
+RUN apt-get install -y python-pip python3-pip
+
+# Python Library Installing
+RUN python -m pip -V
+RUN pip install pandas
+RUN pip install matplotlib
+RUN pip install python-language-server
+
+RUN apt-get install -y fonts-ipafont
+
+COPY ./jinputstart.sh /usr/local/bin/
+
+RUN chmod 655 /usr/local/bin/jinputstart.sh
+
+# END apt-get Use
+RUN apt-get clean
+
+EXPOSE 22
+CMD ["/usr/sbin/sshd", "-D"]

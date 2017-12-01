@@ -1,0 +1,11 @@
+version: '3.1'
+services:
+  atom-by-python:
+    build: .
+    image: "atom-by-python"
+    container_name: "atom-by-python"
+    restart: always
+    ports:
+     - "22000:22"
+    environment:
+      - "DISPLAY=192.168.0.11:0"
